@@ -17,7 +17,6 @@
 #include <system.h>
 #include <io.h>
 #include <segment.h>
-
 #include <signal.h>
 
 #define _S(nr) (1<<((nr)-1))
@@ -181,7 +180,7 @@ repeat:	current->state = TASK_INTERRUPTIBLE;
 		(**p).state=0;
 		goto repeat;
 	}
-	*p=NULL;
+	*p=tmp;
 	if (tmp)
 		tmp->state=0;
 }
@@ -190,7 +189,6 @@ void wake_up(struct task_struct **p)
 {
 	if (p && *p) {
 		(**p).state=0;
-		*p=NULL;
 	}
 }
 
@@ -203,65 +201,6 @@ static struct task_struct * wait_motor[4] = {NULL,NULL,NULL,NULL};
 static int  mon_timer[4]={0,0,0,0};
 static int moff_timer[4]={0,0,0,0};
 unsigned char current_DOR = 0x0C;
-
-int ticks_to_floppy_on(unsigned int nr)
-{
-	//extern unsigned char selected;
-	unsigned char selected = 0;
-	unsigned char mask = 0x10 << nr;
-
-	if (nr>3)
-		panic("floppy_on: nr>3");
-	moff_timer[nr]=10000;		/* 100 s = very big :-) */
-	cli();				/* use floppy_off to turn it off */
-	mask |= current_DOR;
-	if (!selected) {
-		mask &= 0xFC;
-		mask |= nr;
-	}
-	if (mask != current_DOR) {
-		outb(mask,FD_DOR);
-		if ((mask ^ current_DOR) & 0xf0)
-			mon_timer[nr] = HZ/2;
-		else if (mon_timer[nr] < 2)
-			mon_timer[nr] = 2;
-		current_DOR = mask;
-	}
-	sti();
-	return mon_timer[nr];
-}
-
-void floppy_on(unsigned int nr)
-{
-	cli();
-	while (ticks_to_floppy_on(nr))
-		sleep_on(nr+wait_motor);
-	sti();
-}
-
-void floppy_off(unsigned int nr)
-{
-	moff_timer[nr]=3*HZ;
-}
-
-void do_floppy_timer(void)
-{
-	int i;
-	unsigned char mask = 0x10;
-
-	for (i=0 ; i<4 ; i++,mask <<= 1) {
-		if (!(mask & current_DOR))
-			continue;
-		if (mon_timer[i]) {
-			if (!--mon_timer[i])
-				wake_up(i+wait_motor);
-		} else if (!moff_timer[i]) {
-			current_DOR &= ~mask;
-			outb(current_DOR,FD_DOR);
-		} else
-			moff_timer[i]--;
-	}
-}
 
 #define TIME_REQUESTS 64
 
@@ -309,6 +248,9 @@ void do_timer(long cpl)
 	extern int beepcount;
 	extern void sysbeepstop(void);
 
+    static int c = 0;
+    c++;
+    if ((c % 1000)) printk("do_timer: %d\n", c);
 	if (beepcount)
 		if (!--beepcount)
 			sysbeepstop();
@@ -317,7 +259,6 @@ void do_timer(long cpl)
 		current->utime++;
 	else
 		current->stime++;
-
 	if (next_timer) {
 		next_timer->jiffies--;
 		while (next_timer && next_timer->jiffies <= 0) {
@@ -329,8 +270,6 @@ void do_timer(long cpl)
 			(fn)();
 		}
 	}
-	if (current_DOR & 0xf0)
-		do_floppy_timer();
 	if ((--current->counter)>0) return;
 	current->counter=0;
 	if (!cpl) return;
@@ -408,7 +347,8 @@ void sched_init(void)
 	outb_p(0x36,0x43);		/* binary, mode 3, LSB/MSB, ch 0 */
 	outb_p(LATCH & 0xff , 0x40);	/* LSB */
 	outb(LATCH >> 8 , 0x40);	/* MSB */
-	//set_intr_gate(0x20,&timer_interrupt);
+	set_intr_gate(0x20,&timer_interrupt);
+    printk("timer_interrupt\n");
 	outb(inb_p(0x21)&~0x01,0x21);
-	//set_system_gate(0x80,&system_call);
+	set_system_gate(0x80,&system_call);
 }

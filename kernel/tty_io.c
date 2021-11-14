@@ -121,28 +121,25 @@ void tty_intr(struct tty_struct * tty, int mask)
 
 static void sleep_if_empty(struct tty_queue * queue)
 {
-    // TODO
-	//cli();
-	//while (!current->signal && EMPTY(*queue))
-		//interruptible_sleep_on(&queue->proc_list);
-	//sti();
+	cli();
+	while (!current->signal && EMPTY(*queue))
+		interruptible_sleep_on(&queue->proc_list);
+	sti();
 }
 
 static void sleep_if_full(struct tty_queue * queue)
 {
 	if (!FULL(*queue))
 		return;
-    // TODO
-	//cli();
-	//while (!current->signal && LEFT(*queue)<128)
-		//interruptible_sleep_on(&queue->proc_list);
-	//sti();
+	cli();
+	while (!current->signal && LEFT(*queue)<128)
+		interruptible_sleep_on(&queue->proc_list);
+	sti();
 }
 
 void wait_for_keypress(void)
 {
-    // TODO
-	//sleep_if_empty(&tty_table[0].secondary);
+	sleep_if_empty(&tty_table[0].secondary);
 }
 
 void copy_to_cooked(struct tty_struct * tty)
@@ -227,8 +224,7 @@ void copy_to_cooked(struct tty_struct * tty)
 		}
 		PUTCH(c,tty->secondary);
 	}
-    // TODO
-	//wake_up(&tty->secondary.proc_list);
+	wake_up(&tty->secondary.proc_list);
 }
 
 int tty_read(unsigned channel, char * buf, int nr)
@@ -324,9 +320,8 @@ int tty_write(unsigned channel, char * buf, int nr)
 			PUTCH(c,tty->write_q);
 		}
 		tty->write(tty);
-        // TODO
-		//if (nr>0)
-			//schedule();
+		if (nr>0)
+			schedule();
 	}
 	return (b-buf);
 }

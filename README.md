@@ -1,5 +1,4 @@
 # Read The F**king Source Code
-=============================
 
 linux kernel is very interesting, and I am trying to read the source code of version 0.11.  
 

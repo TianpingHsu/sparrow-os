@@ -3,13 +3,6 @@ OS = Linux
 # indicate the Hardware Image file
 HDA_IMG = ./tools/hdc-0.11.img
 
-# indicate the path of the calltree
-CALLTREE=$(shell find tools/ -name "calltree" -perm 755 -type f)
-
-# indicate the path of the bochs
-#BOCHS=$(shell find tools/ -name "bochs" -perm 755 -type f)
-BOCHS=bochs
-
 #
 # if you want the ram-disk device, define this to be the
 # size in blocks.
@@ -47,7 +40,6 @@ Image: boot/bootsect boot/setup tools/system
 	@rm system.tmp
 	@rm -f tools/kernel
 	@sync
-	@echo ${LDFLAGS}
 
 boot/setup: boot/setup.s
 	@make setup -C boot
@@ -56,7 +48,10 @@ boot/bootsect: boot/bootsect.s
 
 SYSTEM_OBJS = boot/head.o init/main.o kernel/console.o kernel/tty_io.o \
 			  kernel/ctype.o kernel/sched.o kernel/keyboard.o \
-			  kernel/printk.o kernel/vsprintf.o kernel/string.o
+			  kernel/printk.o kernel/vsprintf.o kernel/string.o \
+			  kernel/system_call.o kernel/traps.o kernel/signal.o \
+			  kernel/undefined.o kernel/asm.o\
+			  mm/memory.o mm/page.o
 
 tools/system: ${SYSTEM_OBJS}
 	@$(LD) $(LDFLAGS) $^ -o $@
@@ -69,14 +64,15 @@ kernel/keyboard.o:
 
 clean:
 	@make clean -C kernel
+	@make clean -C mm
 	@rm -f Image System.map tmp_make core boot/bootsect boot/setup
 	@rm -f init/*.o tools/system boot/*.o kernel/*.o typescript* info bochsout.txt
 
 start:
-	@qemu-system-x86_64 -m 16M -boot a -fda Image -hda $(HDA_IMG)
+	@qemu-system-x86_64 -m 1024M -boot a -fda Image -hda $(HDA_IMG)
 
 debug:
 	@echo $(OS)
-	@qemu-system-x86_64 -m 16M -boot a -fda Image -hda $(HDA_IMG) -s -S
+	@qemu-system-x86_64 -m 1024M -boot a -fda Image -hda $(HDA_IMG) -s -S
 
 
